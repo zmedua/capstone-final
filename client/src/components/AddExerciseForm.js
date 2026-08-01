@@ -8,7 +8,8 @@ function AddExerciseForm({
   const [exerciseId, setExerciseId] = useState("");
   const [sets, setSets] = useState("");
   const [reps, setReps] = useState("");
-  const [durationSeconds, setDurationSeconds] =
+  const [weight, setWeight] = useState("");
+  const [durationMinutes, setDurationMinutes] =
     useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -27,11 +28,12 @@ function AddExerciseForm({
 
     const body = isCardio
       ? {
-          duration_seconds: Number(durationSeconds),
+          duration_minutes: Number(durationMinutes),
         }
       : {
           sets: Number(sets),
           reps: Number(reps),
+          weight: weight ? Number(weight) : null,
         };
 
     fetch(
@@ -61,7 +63,7 @@ function AddExerciseForm({
         setExerciseId("");
         setSets("");
         setReps("");
-        setDurationSeconds("");
+        setDurationMinutes("");
       })
       .catch((error) => {
         setError(error.message);
@@ -106,9 +108,9 @@ function AddExerciseForm({
             id={`duration-${workoutId}`}
             type="number"
             min="1"
-            value={durationSeconds}
+            value={durationMinutes}
             onChange={(event) =>
-              setDurationSeconds(event.target.value)
+              setDurationMinutes(event.target.value)
             }
             required
           />
@@ -144,6 +146,18 @@ function AddExerciseForm({
             }
             required
           />
+
+          <input
+            type="number"
+            min="0"
+            step="0.5"
+            placeholder="Weight"
+            value={weight}
+            onChange={(event) =>
+              setWeight(event.target.value)
+            }
+          />
+
         </>
       ) : null}
 

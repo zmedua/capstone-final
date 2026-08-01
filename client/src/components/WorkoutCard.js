@@ -9,6 +9,8 @@ function WorkoutCard({
 }) {
   const [error, setError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] =
+    useState(false);
 
   const workoutExercises =
     workout.workout_exercises || [];
@@ -81,6 +83,66 @@ function WorkoutCard({
       });
   }
 
+  function handleCompleteWorkout() {
+    setError("");
+    setIsUpdatingStatus(true);
+
+    fetch(`/workouts/${workout.id}/complete`, {
+      method: "PATCH",
+    })
+      .then((response) => {
+        if (!response.ok) {
+          return response.json().then((data) => {
+            throw new Error(
+              data.error ||
+                "Unable to complete workout."
+            );
+          });
+        }
+
+        return response.json();
+      })
+      .then((updatedWorkout) => {
+        onUpdateWorkout(updatedWorkout);
+      })
+      .catch((error) => {
+        setError(error.message);
+      })
+      .finally(() => {
+        setIsUpdatingStatus(false);
+      });
+  }
+
+  function handleMarkIncomplete() {
+    setError("");
+    setIsUpdatingStatus(true);
+
+    fetch(`/workouts/${workout.id}/incomplete`, {
+      method: "PATCH",
+    })
+      .then((response) => {
+        if (!response.ok) {
+          return response.json().then((data) => {
+            throw new Error(
+              data.error ||
+                "Unable to update workout."
+            );
+          });
+        }
+
+        return response.json();
+      })
+      .then((updatedWorkout) => {
+        onUpdateWorkout(updatedWorkout);
+      })
+      .catch((error) => {
+        setError(error.message);
+      })
+      .finally(() => {
+        setIsUpdatingStatus(false);
+      });
+  }
+
   return (
     <article className="workout-card">
       <h2>{workout.date}</h2>
@@ -90,6 +152,37 @@ function WorkoutCard({
       </p>
 
       {workout.notes && <p>{workout.notes}</p>}
+
+      <p>
+        Status:{" "}
+        <strong>
+          {workout.completed
+            ? "Completed"
+            : "Upcoming"}
+        </strong>
+      </p>
+
+      {workout.completed ? (
+        <button
+          type="button"
+          onClick={handleMarkIncomplete}
+          disabled={isUpdatingStatus}
+        >
+          {isUpdatingStatus
+            ? "Updating..."
+            : "Mark Incomplete"}
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={handleCompleteWorkout}
+          disabled={isUpdatingStatus}
+        >
+          {isUpdatingStatus
+            ? "Updating..."
+            : "Complete Workout"}
+        </button>
+      )}
 
       <h3>Exercises</h3>
 
@@ -103,21 +196,29 @@ function WorkoutCard({
             "Exercise";
 
           return (
-            <div key={workoutExercise.id}>
+            <div
+              key={workoutExercise.id}
+              className="workout-exercise"
+            >
               <p>
                 <strong>{exerciseName}</strong>
 
-                {workoutExercise.sets &&
-                workoutExercise.reps
+                {workoutExercise.sets != null &&
+                workoutExercise.reps != null
                   ? ` — ${workoutExercise.sets} sets of ${workoutExercise.reps} reps`
                   : ""}
 
-                {workoutExercise.duration_seconds
-                  ? ` — ${workoutExercise.duration_seconds} minutes`
+                {workoutExercise.weight != null
+                  ? ` at ${workoutExercise.weight} lbs`
+                  : ""}
+
+                {workoutExercise.duration_minutes != null
+                  ? ` — ${workoutExercise.duration_minutes} minutes`
                   : ""}
               </p>
 
-              <button className="remove-exercise-button"
+              <button
+                className="remove-exercise-button"
                 type="button"
                 onClick={() =>
                   handleDeleteExercise(
@@ -132,13 +233,16 @@ function WorkoutCard({
         })
       )}
 
-      <AddExerciseForm 
-        workoutId={workout.id}
-        exercises={exercises}
-        onExerciseAdded={handleExerciseAdded}
-      />
+      {!workout.completed && (
+        <AddExerciseForm
+          workoutId={workout.id}
+          exercises={exercises}
+          onExerciseAdded={handleExerciseAdded}
+        />
+      )}
 
-      <button className="delete-workout-button"
+      <button
+        className="delete-workout-button"
         type="button"
         onClick={handleDeleteWorkout}
         disabled={isDeleting}
@@ -148,7 +252,11 @@ function WorkoutCard({
           : "Delete Workout"}
       </button>
 
-      {error && <p>{error}</p>}
+      {error && (
+        <p className="error-message">
+          {error}
+        </p>
+      )}
     </article>
   );
 }

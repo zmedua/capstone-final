@@ -10,13 +10,20 @@ import NavBar from "./components/NavBar";
 import Login from "./pages/Login";
 import WorkoutsPage from "./pages/WorkoutsPage";
 import AddWorkoutPage from "./pages/AddWorkoutPage";
-import Signup from "./pages/Signup"
+import WorkoutHistoryPage from "./pages/WorkoutHistoryPage";
+import ExercisesPage from "./pages/ExercisesPage";
+import FavoritesPage from "./pages/FavoritesPage";
+import Signup from "./pages/Signup";
+
 import "./App.css";
+
 function App() {
   const [user, setUser] = useState(null);
   const [workouts, setWorkouts] = useState([]);
   const [exercises, setExercises] = useState([]);
+  const [favorites, setFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [appError, setAppError] = useState("");
 
   // Check whether the user already has an active session.
   useEffect(() => {
@@ -39,51 +46,49 @@ function App() {
       });
   }, []);
 
-  // Load workouts after the user logs in.
+  // Load application data after login.
   useEffect(() => {
     if (!user) {
       setWorkouts([]);
-      return;
-    }
-
-    fetch("/workouts")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Unable to load workouts.");
-        }
-
-        return response.json();
-      })
-      .then((data) => {
-        setWorkouts(data.workouts || data);
-      })
-      .catch((error) => {
-        console.error(error);
-        setWorkouts([]);
-      });
-  }, [user]);
-
-  // Load available exercises after the user logs in.
-  useEffect(() => {
-    if (!user) {
       setExercises([]);
+      setFavorites([]);
       return;
     }
 
-    fetch("/exercises")
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error("Unable to load exercises.");
+    setAppError("");
+
+    Promise.all([
+      fetch("/workouts"),
+      fetch("/exercises"),
+      fetch("/favorites"),
+    ])
+      .then(async ([workoutResponse, exerciseResponse, favoriteResponse]) => {
+        if (
+          !workoutResponse.ok ||
+          !exerciseResponse.ok ||
+          !favoriteResponse.ok
+        ) {
+          throw new Error("Unable to load application data.");
         }
 
-        return response.json();
+        const workoutData = await workoutResponse.json();
+        const exerciseData = await exerciseResponse.json();
+        const favoriteData = await favoriteResponse.json();
+
+        return {
+          workoutData,
+          exerciseData,
+          favoriteData,
+        };
       })
-      .then((data) => {
-        setExercises(data.exercises || data);
+      .then(({ workoutData, exerciseData, favoriteData }) => {
+        setWorkouts(workoutData.workouts || workoutData);
+        setExercises(exerciseData.exercises || exerciseData);
+        setFavorites(favoriteData.favorites || favoriteData);
       })
       .catch((error) => {
         console.error(error);
-        setExercises([]);
+        setAppError(error.message);
       });
   }, [user]);
 
@@ -103,9 +108,12 @@ function App() {
         setUser(null);
         setWorkouts([]);
         setExercises([]);
+        setFavorites([]);
+        setAppError("");
       })
       .catch((error) => {
         console.error(error);
+        setAppError(error.message);
       });
   }
 
@@ -116,7 +124,24 @@ function App() {
     ]);
   }
 
-  // All hooks must appear before this conditional return.
+  function handleWorkoutUpdated(updatedWorkout) {
+    setWorkouts((currentWorkouts) =>
+      currentWorkouts.map((workout) =>
+        workout.id === updatedWorkout.id
+          ? updatedWorkout
+          : workout
+      )
+    );
+  }
+
+  function handleWorkoutDeleted(workoutId) {
+    setWorkouts((currentWorkouts) =>
+      currentWorkouts.filter(
+        (workout) => workout.id !== workoutId
+      )
+    );
+  }
+
   if (isLoading) {
     return <p>Loading...</p>;
   }
@@ -130,6 +155,12 @@ function App() {
         />
       )}
 
+      {appError && (
+        <p className="error-message">
+          {appError}
+        </p>
+      )}
+
       <Routes>
         <Route
           path="/login"
@@ -141,6 +172,7 @@ function App() {
             )
           }
         />
+
         <Route
           path="/signup"
           element={
@@ -151,7 +183,7 @@ function App() {
             )
           }
         />
-        
+
         <Route
           path="/workouts"
           element={
@@ -160,6 +192,8 @@ function App() {
                 workouts={workouts}
                 setWorkouts={setWorkouts}
                 exercises={exercises}
+                onWorkoutUpdated={handleWorkoutUpdated}
+                onWorkoutDeleted={handleWorkoutDeleted}
               />
             ) : (
               <Navigate to="/login" replace />
@@ -173,6 +207,50 @@ function App() {
             user ? (
               <AddWorkoutPage
                 onAddWorkout={handleAddWorkout}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/history"
+          element={
+            user ? (
+              <WorkoutHistoryPage
+                workouts={workouts}
+                onWorkoutUpdated={handleWorkoutUpdated}
+                onWorkoutDeleted={handleWorkoutDeleted}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/exercises"
+          element={
+            user ? (
+              <ExercisesPage
+                exercises={exercises}
+                favorites={favorites}
+                setFavorites={setFavorites}
+              />
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+
+        <Route
+          path="/favorites"
+          element={
+            user ? (
+              <FavoritesPage
+                favorites={favorites}
+                setFavorites={setFavorites}
               />
             ) : (
               <Navigate to="/login" replace />
