@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import ExerciseSearch from "./ExerciseSearch";
 import ExerciseCard from "../components/ExerciseCard";
-
+import "../styles/ExerciseCard.css";
 function ExercisesPage({
   exercises,
   favorites,

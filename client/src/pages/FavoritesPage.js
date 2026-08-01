@@ -1,5 +1,5 @@
 import ExerciseCard from "../components/ExerciseCard";
-
+import "../styles/ExerciseCard.css";
 function FavoritesPage({
   favorites,
   setFavorites,

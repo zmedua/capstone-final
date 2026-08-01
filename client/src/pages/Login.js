@@ -5,7 +5,7 @@ import "../styles/Login.css";
 function Login({ onLogin }) {
   return (
     <main>
-      <h1 className="login-title">WorkPitt</h1>
+      <h1 className="login-title">Employee Workout Tracker</h1>
       <h2 className="login-prompt">Login</h2>
       <LoginForm onLogin={onLogin} />
       <p className="signup-prompt">

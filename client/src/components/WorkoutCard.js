@@ -164,13 +164,24 @@ function WorkoutCard({
 
       {workout.completed ? (
         <button
+          className={
+            workout.completed
+              ? "incomplete-workout-button"
+              : "complete-workout-button"
+          }
           type="button"
-          onClick={handleMarkIncomplete}
+          onClick={
+            workout.completed
+              ? handleMarkIncomplete
+              : handleCompleteWorkout
+          }
           disabled={isUpdatingStatus}
         >
           {isUpdatingStatus
             ? "Updating..."
-            : "Mark Incomplete"}
+            : workout.completed
+              ? "Mark Incomplete"
+              : "Complete Workout"}
         </button>
       ) : (
         <button

@@ -1,3 +1,111 @@
+
+ Workout Tracker
+
+A full-stack workout tracking application that allows users to securely create, organize, and track their workouts. Users can create accounts, manage personalized workout plans, add exercises, mark workouts as completed, view workout history, and save favorite exercises.
+
+Features
+User Authentication
+User signup
+User login
+Secure password hashing with Flask-Bcrypt
+Session-based authentication
+Protected routes
+Workout Management
+Create workouts
+View workouts
+Edit workouts
+Delete workouts
+Mark workouts as completed
+View workout history
+Exercise Management
+Browse exercises
+Add exercises to workouts
+Remove exercises from workouts
+Record:
+Sets
+Repetitions
+Weight
+Cardio duration
+Favorites
+Save favorite exercises
+Remove favorite exercises
+Quickly access frequently used exercises
+Search & Filtering
+Search exercises by name
+Filter by category
+Filter by muscle group
+Filter by difficulty
+Technologies Used
+Frontend
+React
+React Router
+JavaScript
+HTML
+CSS
+Fetch API
+Backend
+Python
+Flask
+SQLAlchemy
+Flask-Migrate
+Flask-Bcrypt
+Marshmallow
+SQLite
+Development Tools
+Git
+GitHub
+VS Code
+Database Models
+User
+Workout
+Exercise
+WorkoutExercise (Join Table)
+FavoriteExercise
+Relationships
+One User has many Workouts.
+One User has many Favorite Exercises.
+One Workout has many WorkoutExercises.
+One Exercise can belong to many WorkoutExercises.
+Workouts and Exercises are connected through the WorkoutExercise join table.
+Installation
+Clone the repository
+git clone https://github.com/zmedua/capstone-rough-draft.git
+cd capstone-rough-draft
+Backend
+cd server
+
+pipenv install
+
+pipenv shell
+
+flask db upgrade
+
+python seed.py
+
+python app.py
+Frontend
+cd ../client
+
+npm install
+
+npm start
+Future Improvements
+ExerciseDB API integration
+Exercise images and descriptions
+Progress charts and workout analytics
+Improved dashboard
+Enhanced responsive design
+Workout templates
+Author
+
+Zane Medua
+
+GitHub: https://github.com/zmedua
+
+LinkedIn: https://www.linkedin.com/in/zanemedua/
+
+
+
 # Getting Started with Create React App
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).

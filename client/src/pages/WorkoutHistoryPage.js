@@ -1,5 +1,5 @@
 import WorkoutCard from "../components/WorkoutCard";
-
+import "../styles/ExerciseCard.css";
 function WorkoutHistoryPage({ workouts, setWorkouts }) {
   const completedWorkouts = workouts.filter(
     (workout) => workout.completed

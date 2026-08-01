@@ -89,3 +89,73 @@
 .delete-workout-button {
     transition: background-color 0.2s ease-in-out;
 }
+
+/* Responsive Design */
+
+.workouts-page {
+  width: min(1100px, 92%);
+  margin: 32px auto;
+}
+
+.workouts-heading {
+  margin-bottom: 24px;
+}
+
+.workout-list {
+  display: grid;
+  gap: 22px;
+}
+
+.workout-card {
+  background: white;
+  border: 1px solid #e3e7eb;
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 6px 20px rgba(31, 41, 51, 0.08);
+}
+
+.workout-card h2 {
+  margin-bottom: 8px;
+}
+
+.workout-card h3 {
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.workout-exercise {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 12px;
+  padding: 14px;
+  border-radius: 10px;
+  background: #f7f9f8;
+  border-left: 4px solid #4f6f52;
+}
+
+.complete-workout-button {
+  background: #4f6f52;
+  color: white;
+}
+
+.incomplete-workout-button {
+  background: #d9a441;
+  color: #1f2933;
+}
+
+.remove-exercise-button {
+  background: #eceff1;
+  color: #374151;
+}
+
+.delete-workout-button {
+  margin-top: 20px;
+  background: #b42318;
+  color: white;
+}
+
+.delete-workout-button:hover {
+  background: #931f16;
+}

@@ -2,8 +2,8 @@ from flask import Flask, request, make_response, session
 from flask_migrate import Migrate
 from marshmallow import ValidationError
 
-from models import db, bcrypt, User, Exercise, Workout, WorkoutExercise
-from schemas import ExerciseSchema, WorkoutSchema, WorkoutExerciseSchema
+from models import db, bcrypt, User, Exercise, Workout, WorkoutExercise, FavoriteExercise
+from schemas import ExerciseSchema, WorkoutSchema, WorkoutExerciseSchema, FavoriteExerciseSchema
 
 app = Flask(__name__)
 
@@ -22,14 +22,14 @@ workout_schema = WorkoutSchema()
 workouts_schema = WorkoutSchema(many=True)
 
 workout_exercise_schema = WorkoutExerciseSchema()
-
+favorite_exercise_schema = FavoriteExerciseSchema()
+favorite_exercises_schema = FavoriteExerciseSchema(many=True)
 @app.route("/workouts", methods=["GET"])
 def get_workouts():
     user_id = session.get("user_id")
     if not user_id:
         return make_response({"error": "Unauthorized"}, 401)
-    if not session.get("user_id"):
-        return make_response({"error": "Unauthorized"}, 401)
+    
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 5, type=int)
 
@@ -63,12 +63,13 @@ def create_workout():
     if not session.get("user_id"):
         return make_response({"error": "Unauthorized"}, 401)
     try:
-        data = workout_schema.load(request.get_json())
+        data = workout_schema.load(request.get_json() or {})
 
         workout = Workout(
             date=data["date"],
             duration_minutes=data["duration_minutes"],
             notes=data.get("notes"),
+            completed=data.get("completed", False),
             user_id=session["user_id"]
 
         )
@@ -80,8 +81,11 @@ def create_workout():
     
     except ValidationError as e:
         return make_response({"errors": e.messages}, 400)
+    
     except ValueError as e:
+        db.session.rollback()
         return make_response({"error": str(e)}, 400)
+
 @app.route("/workouts/<int:id>", methods=["DELETE"])
 def delete_workout(id):
     user_id = session.get("user_id")
@@ -117,12 +121,166 @@ def update_workout(id):
     db.session.commit()
 
     return make_response(workout_schema.dump(workout), 200)
+@app.route("/workouts/<int:id>/complete", methods=["PATCH"])
+def complete_workout(id):
+    user_id = session.get("user_id")
 
+    if not user_id:
+        return make_response({"error": "Unauthorized"}, 401)
+
+    workout = Workout.query.filter_by(
+        id=id,
+        user_id=user_id,
+    ).first()
+
+    if not workout:
+        return make_response(
+            {"error": "Workout not found"},
+            404,
+        )
+
+    workout.mark_complete()
+
+    db.session.commit()
+
+    return make_response(
+        workout_schema.dump(workout),
+        200,
+    )
+@app.route("/workouts/<int:id>/incomplete", methods=["PATCH"])
+def mark_workout_incomplete(id):
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return make_response({"error": "Unauthorized"}, 401)
+
+    workout = Workout.query.filter_by(
+        id=id,
+        user_id=user_id,
+    ).first()
+
+    if not workout:
+        return make_response(
+            {"error": "Workout not found"},
+            404,
+        )
+
+    workout.mark_incomplete()
+
+    db.session.commit()
+
+    return make_response(
+        workout_schema.dump(workout),
+        200,
+    )
+@app.route("/workouts/history", methods=["GET"])
+def get_workout_history():
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return make_response({"error": "Unauthorized"}, 401)
+
+    completed_workouts = (
+        Workout.query
+        .filter_by(
+            user_id=user_id,
+            completed=True,
+        )
+        .order_by(Workout.completed_at.desc())
+        .all()
+    )
+
+    return make_response(
+        workouts_schema.dump(completed_workouts),
+        200,
+    )
+@app.route("/workouts/upcoming", methods=["GET"])
+def get_upcoming_workouts():
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return make_response({"error": "Unauthorized"}, 401)
+
+    workouts = (
+        Workout.query
+        .filter_by(
+            user_id=user_id,
+            completed=False,
+        )
+        .order_by(Workout.date.asc())
+        .all()
+    )
+
+    return make_response(
+        workouts_schema.dump(workouts),
+        200,
+    )
 @app.route("/exercises", methods=["GET"])
 def get_exercises():
-    exercises = Exercise.query.all()
-    return make_response(exercises_schema.dump(exercises), 200)
+    search = request.args.get(
+        "search",
+        type=str,
+    )
 
+    category = request.args.get(
+        "category",
+        type=str,
+    )
+
+    muscle_group = request.args.get(
+        "muscle_group",
+        type=str,
+    )
+
+    equipment = request.args.get(
+        "equipment",
+        type=str,
+    )
+
+    difficulty = request.args.get(
+        "difficulty",
+        type=str,
+    )
+
+    query = Exercise.query
+
+    if search:
+        cleaned_search = search.strip()
+
+        query = query.filter(
+            Exercise.name.ilike(
+                f"%{cleaned_search}%"
+            )
+        )
+
+    if category and category.lower() != "all":
+        query = query.filter(
+            Exercise.category.ilike(category)
+        )
+
+    if muscle_group and muscle_group.lower() != "all":
+        query = query.filter(
+            Exercise.muscle_group.ilike(muscle_group)
+        )
+
+    if equipment and equipment.lower() != "all":
+        query = query.filter(
+            Exercise.equipment.ilike(equipment)
+        )
+
+    if difficulty and difficulty.lower() != "all":
+        query = query.filter(
+            Exercise.difficulty.ilike(difficulty)
+        )
+
+    exercises = query.order_by(
+        Exercise.name.asc()
+    ).all()
+
+    return make_response(
+        exercises_schema.dump(exercises),
+        200,
+    )
 @app.route("/exercises/<int:id>", methods=["GET"])
 def get_exercise(id):
     exercise = Exercise.query.get(id)
@@ -130,27 +288,157 @@ def get_exercise(id):
     if not exercise:
         return make_response({"error": "Exercise not found"}, 404)
     return make_response(exercise_schema.dump(exercise), 200)
+@app.route("/favorites", methods=["GET"])
+def get_favorite_exercises():
+    user_id = session.get("user_id")
 
-@app.route("/exercises",methods=["POST"])
+    if not user_id:
+        return make_response({"error": "Unauthorized"}, 401)
+
+    favorites = (
+        FavoriteExercise.query
+        .filter_by(user_id=user_id)
+        .order_by(FavoriteExercise.created_at.desc())
+        .all()
+    )
+
+    results = [
+        {
+            "id": favorite.id,
+            "exercise": exercise_schema.dump(
+                favorite.exercise
+            ),
+            "created_at": favorite.created_at.isoformat(),
+        }
+        for favorite in favorites
+    ]
+
+    return make_response(results, 200)
+@app.route("/exercises", methods=["POST"])
 def create_exercise():
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return make_response({"error": "Unauthorized"}, 401)
+
     try:
-        data = exercise_schema.load(request.get_json())
+        data = exercise_schema.load(
+            request.get_json() or {}
+        )
+
         exercise = Exercise(
             name=data["name"],
             category=data["category"],
-            equipment_needed=data.get("equipment_needed", False)
+            muscle_group=data.get("muscle_group"),
+            equipment=data.get("equipment"),
+            difficulty=data.get("difficulty"),
+            description=data.get("description"),
+            external_id=data.get("external_id"),
+            image_url=data.get("image_url"),
         )
 
         db.session.add(exercise)
         db.session.commit()
 
-        return make_response(exercise_schema.dump(exercise), 201)
-    except ValidationError as e:
-        return make_response({"errors": e.messages}, 400)
+        return make_response(
+            exercise_schema.dump(exercise),
+            201,
+        )
 
-    except ValueError as e:
-        return make_response({"error": str(e)}, 400)
+    except ValidationError as error:
+        return make_response(
+            {"errors": error.messages},
+            400,
+        )
 
+    except ValueError as error:
+        db.session.rollback()
+
+        return make_response(
+            {"error": str(error)},
+            400,
+        )
+
+    except IntegrityError:
+        db.session.rollback()
+
+        return make_response(
+            {"error": "An exercise with this name already exists."},
+            409,
+        )
+@app.route(
+    "/favorites/<int:exercise_id>",
+    methods=["POST"],
+)
+def add_favorite_exercise(exercise_id):
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return make_response({"error": "Unauthorized"}, 401)
+
+    exercise = db.session.get(
+        Exercise,
+        exercise_id,
+    )
+
+    if not exercise:
+        return make_response(
+            {"error": "Exercise not found"},
+            404,
+        )
+
+    existing_favorite = FavoriteExercise.query.filter_by(
+        user_id=user_id,
+        exercise_id=exercise_id,
+    ).first()
+
+    if existing_favorite:
+        return make_response(
+            {"error": "Exercise is already a favorite"},
+            409,
+        )
+
+    favorite = FavoriteExercise(
+        user_id=user_id,
+        exercise_id=exercise_id,
+    )
+
+    db.session.add(favorite)
+    db.session.commit()
+
+    return make_response(
+        {
+            "id": favorite.id,
+            "exercise": exercise_schema.dump(exercise),
+            "created_at": favorite.created_at.isoformat(),
+        },
+        201,
+    )
+@app.route(
+    "/favorites/<int:exercise_id>",
+    methods=["DELETE"],
+)
+def delete_favorite_exercise(exercise_id):
+    user_id = session.get("user_id")
+
+    if not user_id:
+        return make_response({"error": "Unauthorized"}, 401)
+
+    favorite = FavoriteExercise.query.filter_by(
+        user_id=user_id,
+        exercise_id=exercise_id,
+    ).first()
+
+    if not favorite:
+        return make_response(
+            {"error": "Favorite exercise not found"},
+            404,
+        )
+
+    db.session.delete(favorite)
+    db.session.commit()
+
+    return make_response("", 204)
 @app.route("/exercises/<int:id>", methods=["DELETE"])
 def delete_exercise(id):
     exercise = Exercise.query.get(id)
@@ -163,41 +451,106 @@ def delete_exercise(id):
 
     return make_response({}, 204)
 
-@app.route("/workouts/<int:workout_id>/exercises/<int:exercise_id>/workout_exercises", methods=["POST"])
-def add_exercise_to_workout(workout_id, exercise_id):
+@app.route(
+    "/workouts/<int:workout_id>/exercises/"
+    "<int:exercise_id>/workout_exercises",
+    methods=["POST"],
+)
+def add_exercise_to_workout(
+    workout_id,
+    exercise_id,
+):
     user_id = session.get("user_id")
+
     if not user_id:
         return make_response({"error": "Unauthorized"}, 401)
-    workout = Workout.query.filter_by(id=workout_id, user_id=user_id).first()
 
-    exercise = Exercise.query.get(exercise_id)
+    workout = Workout.query.filter_by(
+        id=workout_id,
+        user_id=user_id,
+    ).first()
 
     if not workout:
-        return make_response({"error": "Workout not found"}, 404)
-    
+        return make_response(
+            {"error": "Workout not found"},
+            404,
+        )
+
+    exercise = db.session.get(
+        Exercise,
+        exercise_id,
+    )
+
     if not exercise:
-        return make_response({"error": "Exercise not found"}, 404)
-    
+        return make_response(
+            {"error": "Exercise not found"},
+            404,
+        )
+
+    existing_entry = WorkoutExercise.query.filter_by(
+        workout_id=workout_id,
+        exercise_id=exercise_id,
+    ).first()
+
+    if existing_entry:
+        return make_response(
+            {
+                "error":
+                "This exercise is already part of the workout."
+            },
+            409,
+        )
+
     try:
-        data = workout_exercise_schema.load(request.get_json())
+        data = workout_exercise_schema.load(
+            request.get_json() or {}
+        )
 
         workout_exercise = WorkoutExercise(
             workout_id=workout_id,
             exercise_id=exercise_id,
             reps=data.get("reps"),
             sets=data.get("sets"),
-            duration_seconds=data.get("duration_seconds")
+            weight=data.get("weight"),
+            duration_minutes=data.get(
+                "duration_minutes"
+            ),
         )
 
         db.session.add(workout_exercise)
         db.session.commit()
 
-        return make_response(workout_exercise_schema.dump(workout_exercise), 201)
-    except ValidationError as e:
-        return make_response({"errors": e.messages}, 400)
+        return make_response(
+            workout_exercise_schema.dump(
+                workout_exercise
+            ),
+            201,
+        )
 
-    except ValueError as e:
-        return make_response({"error": str(e)}, 400)
+    except ValidationError as error:
+        return make_response(
+            {"errors": error.messages},
+            400,
+        )
+
+    except ValueError as error:
+        db.session.rollback()
+
+        return make_response(
+            {"error": str(error)},
+            400,
+        )
+
+    except IntegrityError:
+        db.session.rollback()
+
+        return make_response(
+            {
+                "error":
+                "This exercise is already part of the workout."
+            },
+            409,
+        )
 @app.route(
     "/workout_exercises/<int:id>",
     methods=["DELETE"],
